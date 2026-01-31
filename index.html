@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2D Game Prompt Studio (Leonardo/SD通用)</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#161a22; --panel2:#0b0e14; --line:#2a2f3a;
+      --text:#eaeaf0; --muted:#a7adbb; --brand:#4f6bff; --ok:#2ad67d; --warn:#ffcc66;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", Arial;
+    }
+    .wrap{max-width:1100px; margin:0 auto; padding:20px;}
+    header{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+    h1{font-size:18px; margin:0;}
+    .badge{font-size:12px; color:#cfe0ff; background:rgba(79,107,255,.15); border:1px solid rgba(79,107,255,.35); padding:6px 10px; border-radius:999px;}
+    .grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:14px; margin-top:14px;}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr;}}
+    .card{
+      background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+    }
+    .card h2{font-size:14px; margin:0 0 10px 0; color:#9fb6ff;}
+    .row{display:grid; grid-template-columns: repeat(12, 1fr); gap:10px;}
+    .col-12{grid-column: span 12;}
+    .col-8{grid-column: span 8;}
+    .col-6{grid-column: span 6;}
+    .col-4{grid-column: span 4;}
+    .col-3{grid-column: span 3;}
+    .col-2{grid-column: span 2;}
+    @media (max-width: 720px){
+      .col-8,.col-6,.col-4,.col-3,.col-2{grid-column: span 12;}
+    }
+    label{display:block; font-size:12px; color:var(--muted); margin:2px 0 6px;}
+    input, select, textarea{
+      width:100%; padding:10px 10px; border-radius:10px;
+      border:1px solid var(--line); background:var(--panel2); color:var(--text);
+      font-size:13px; outline:none;
+    }
+    textarea{min-height:90px; resize:vertical;}
+    .btns{display:flex; gap:10px; flex-wrap:wrap;}
+    button{
+      border:1px solid transparent; background:var(--brand); color:white;
+      padding:10px 12px; border-radius:12px; cursor:pointer; font-size:13px;
+    }
+    button.secondary{background:transparent; border-color:var(--line); color:var(--text);}
+    button.ghost{background:transparent; border-color:transparent; color:#cfe0ff; padding:6px 8px;}
+    button:active{transform: translateY(1px);}
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      background:var(--panel2); border:1px solid var(--line); padding:8px 10px; border-radius:999px;
+      font-size:12px; color:var(--muted);
+    }
+    .toggles{display:flex; flex-wrap:wrap; gap:10px;}
+    .toggle{
+      display:flex; align-items:center; gap:8px;
+      background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:8px 10px;
+      font-size:12px; color:var(--text);
+      user-select:none;
+    }
+    .toggle input{width:auto; margin:0;}
+    .out{
+      background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius);
+      padding:12px; white-space:pre-wrap; font-size:13px; min-height:140px;
+    }
+    .hint{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5;}
+    .two{display:grid; grid-template-columns:1fr; gap:12px;}
+    .history{
+      max-height:290px; overflow:auto; border-radius:var(--radius);
+      border:1px solid var(--line); background:var(--panel2);
+    }
+    .item{
+      padding:10px 12px; border-bottom:1px solid rgba(42,47,58,.7);
+      display:flex; gap:10px; align-items:flex-start; justify-content:space-between;
+    }
+    .item:last-child{border-bottom:none;}
+    .item .meta{font-size:11px; color:var(--muted);}
+    .item .title{font-size:12px; color:var(--text); margin:0 0 4px;}
+    .item .small{font-size:12px; color:#cfe0ff; margin-top:6px;}
+    .miniBtns{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+    .miniBtns button{padding:6px 8px; border-radius:10px; font-size:12px;}
+    .miniBtns button.secondary{border-color:rgba(42,47,58,.9);}
+    .status{font-size:12px; color:var(--muted);}
+    .status .ok{color:var(--ok);}
+    .status .warn{color:var(--warn);}
+    .split{display:grid; grid-template-columns:1fr; gap:10px;}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <h1>2D Game Prompt Studio</h1>
+      <span class="badge">面向：2D 游戏资产（Leonardo/SD通用）</span>
+    </div>
+    <div class="status" id="status">就绪</div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Builder -->
+    <div class="card">
+      <h2>资产配置</h2>
+      <div class="row">
+        <div class="col-4">
+          <label>资产类型</label>
+          <select id="assetType"></select>
+        </div>
+        <div class="col-4">
+          <label>视角</label>
+          <select id="view">
+            <option value="side view">侧视 side view</option>
+            <option value="top-down view">俯视 top-down</option>
+            <option value="isometric view">等距 isometric</option>
+            <option value="front view">正面 front</option>
+            <option value="3/4 view">3/4 view</option>
+          </select>
+        </div>
+        <div class="col-4">
+          <label>风格预设</label>
+          <select id="stylePreset"></select>
+        </div>
+
+        <div class="col-8">
+          <label>主体/内容（必填）</label>
+          <input id="subject" placeholder='例：monkey warrior with golden staff / grass ground tile / potion icon' />
+        </div>
+        <div class="col-4">
+          <label>用途/状态（按类型）</label>
+          <select id="state"></select>
+        </div>
+
+        <div class="col-6">
+          <label>材质/细节（可选）</label>
+          <input id="details" placeholder="例：wood, stone, cloth folds, metal highlights" />
+        </div>
+        <div class="col-6">
+          <label>情绪/氛围（可选）</label>
+          <input id="mood" placeholder="例：cheerful, heroic, spooky, cozy" />
+        </div>
+
+        <div class="col-6">
+          <label>配色（可选）</label>
+          <select id="palette">
+            <option value="">不指定</option>
+            <option value="limited color palette">限制色板 limited</option>
+            <option value="pastel palette">粉彩 pastel</option>
+            <option value="vibrant saturated colors">高饱和 vibrant</option>
+            <option value="muted earthy tones">低饱和 earthy</option>
+            <option value="monochrome palette">单色 monochrome</option>
+            <option value="retro 16-bit palette">复古16-bit</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label>线条/阴影</label>
+          <select id="renderStyle">
+            <option value="clean outline, simple shading, flat lighting">清晰描边 + 简单阴影 + 平光</option>
+            <option value="no outline, soft shading, flat lighting">无描边 + 柔和阴影 + 平光</option>
+            <option value="bold outline, cel shading, flat lighting">粗描边 + 赛璐璐 + 平光</option>
+            <option value="pixel art, crisp pixels, no anti-aliasing">像素风 pixel art</option>
+            <option value="vector-like, crisp edges, flat shading">矢量风 vector-like</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <label>技术约束（强烈建议勾选）</label>
+          <div class="toggles">
+            <label class="toggle"><input type="checkbox" id="noBg" checked> no background</label>
+            <label class="toggle"><input type="checkbox" id="transparent" checked> transparent background</label>
+            <label class="toggle"><input type="checkbox" id="cleanEdges" checked> clean edges</label>
+            <label class="toggle"><input type="checkbox" id="consistent" checked> consistent proportions</label>
+            <label class="toggle"><input type="checkbox" id="orthographic"> no perspective distortion</label>
+            <label class="toggle"><input type="checkbox" id="tileable"> tileable / seamless</label>
+            <label class="toggle"><input type="checkbox" id="spriteSheet"> sprite sheet (grid)</label>
+            <label class="toggle"><input type="checkbox" id="uiNoShadow"> UI: no shadow</label>
+          </div>
+          <div class="hint">提示：做“游戏素材”最关键的是把「资产类型」和「技术约束」写清楚，否则模型会当作插画去画。</div>
+        </div>
+
+        <div class="col-4">
+          <label>尺寸提示（写进 Prompt）</label>
+          <select id="sizeHint">
+            <option value="">不写尺寸</option>
+            <option value="512x512">512×512</option>
+            <option value="768x768">768×768</option>
+            <option value="1024x1024">1024×1024</option>
+            <option value="1024x576">1024×576（横）</option>
+            <option value="576x1024">576×1024（竖）</option>
+            <option value="2048x2048">2048×2048（大图）</option>
+          </select>
+        </div>
+        <div class="col-4">
+          <label>平台输出偏好</label>
+          <select id="platform">
+            <option value="leonardo">Leonardo（推荐）</option>
+            <option value="sd">Stable Diffusion（A1111/Comfy）</option>
+            <option value="generic">通用</option>
+          </select>
+        </div>
+        <div class="col-4">
+          <label>质量块（可选）</label>
+          <select id="quality">
+            <option value="highly detailed, professional quality">highly detailed</option>
+            <option value="game-ready asset, production quality">game-ready</option>
+            <option value="simple shapes, readable silhouette">readable</option>
+            <option value="">不加质量块</option>
+          </select>
+        </div>
+
+        <div class="col-12 btns" style="margin-top:4px;">
+          <button onclick="generate()">生成 Prompt</button>
+          <button class="secondary" onclick="copyPrompt()">复制 Prompt</button>
+          <button class="secondary" onclick="copyNegative()">复制 Negative</button>
+          <button class="secondary" onclick="saveToHistory()">保存到历史</button>
+          <button class="secondary" onclick="exportJSON()">导出 JSON</button>
+          <button class="ghost" onclick="resetAll()">重置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output / Negative / History -->
+    <div class="two">
+      <div class="card">
+        <h2>Prompt 输出</h2>
+        <div class="out" id="promptOut"></div>
+        <div class="hint">
+          Leonardo 使用：把上面整段粘贴到 Prompt 输入框。<br/>
+          SD 使用：正向 Prompt = 第一段；Negative Prompt = 下方 Negative。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Negative Prompt（游戏资产向）</h2>
+        <textarea id="negative"></textarea>
+        <div class="btns" style="margin-top:8px;">
+          <button class="secondary" onclick="copyNegative()">复制 Negative</button>
+          <button class="secondary" onclick="useRecommendedNegative()">按类型推荐</button>
+        </div>
+        <div class="hint">如果你发现总是跑出“插画/电影感背景”，Negative 里把 background / cinematic / realistic 加强。</div>
+      </div>
+
+      <div class="card">
+        <h2>历史记录（本地保存）</h2>
+        <div class="history" id="history"></div>
+        <div class="btns" style="margin-top:10px;">
+          <button class="secondary" onclick="clearHistory()">清空历史</button>
+          <button class="secondary" onclick="importJSON()">导入 JSON</button>
+        </div>
+        <div class="hint">历史只保存在你的浏览器 localStorage，本地离线可用。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- Presets ----------
+  const ASSET_TYPES = [
+    { key:"character_sprite", name:"角色精灵 Character Sprite", base:"2D game character sprite" },
+    { key:"enemy_sprite", name:"敌人精灵 Enemy Sprite", base:"2D game enemy sprite" },
+    { key:"npc_sprite", name:"NPC 精灵 NPC Sprite", base:"2D game NPC sprite" },
+    { key:"item_icon", name:"道具图标 Item/Icon", base:"game UI icon asset" },
+    { key:"ui_element", name:"UI 元件 UI Element", base:"game UI element asset" },
+    { key:"tile_ground", name:"地面瓦片 Ground Tile", base:"2D game tile asset" },
+    { key:"tile_wall", name:"墙体瓦片 Wall Tile", base:"2D game tile asset" },
+    { key:"seamless_texture", name:"无缝贴图 Seamless Texture", base:"seamless texture asset" },
+    { key:"prop_object", name:"场景物件 Prop/Object", base:"2D game prop asset" },
+    { key:"background_layer", name:"背景分层 Background Layer", base:"2D game background layer" },
+    { key:"vfx_effect", name:"特效 VFX", base:"2D game VFX asset" }
+  ];
+
+  const STATES = {
+    character_sprite: ["idle pose","run pose","jump pose","attack pose","hurt pose","death pose","character sheet"],
+    enemy_sprite: ["idle pose","attack pose","hurt pose","death pose","enemy sheet"],
+    npc_sprite: ["idle pose","talking pose","gesture pose","NPC sheet"],
+    item_icon: ["icon","inventory icon","skill icon","map icon","buff/debuff icon"],
+    ui_element: ["button","panel","window frame","health bar","menu background","dialog box"],
+    tile_ground: ["tile","tileset","platform tile","slope tile","edge tile"],
+    tile_wall: ["tile","tileset","corner tile","edge tile","door frame"],
+    seamless_texture: ["texture","material swatch","pattern tile"],
+    prop_object: ["single prop","prop set","breakable object"],
+    background_layer: ["sky layer","midground layer","foreground layer","parallax layer"],
+    vfx_effect: ["impact","sparkle","fire","smoke","magic circle","slash trail","explosion"]
+  };
+
+  const STYLE_PRESETS = [
+    { key:"cartoon", name:"Cartoon（卡通清晰）", text:"cartoon game art style, readable silhouette" },
+    { key:"pixel", name:"Pixel（像素风）", text:"pixel art style, crisp pixels, no anti-aliasing" },
+    { key:"anime", name:"Anime（轻日系2D）", text:"anime-inspired 2D game art style, clean lines" },
+    { key:"fantasy", name:"Fantasy（奇幻RPG）", text:"fantasy RPG 2D game art style, hand-painted feel but asset-ready" },
+    { key:"cute", name:"Cute（Q版可爱）", text:"cute chibi 2D game art style, simple shapes, big head proportion" },
+    { key:"dark", name:"Dark（暗黑像素/手绘）", text:"dark fantasy 2D game art style, high contrast, readable shapes" },
+    { key:"flat_ui", name:"Flat UI（扁平UI）", text:"flat UI design, vector-like, minimal shading" }
+  ];
+
+  const NEGATIVE_BY_TYPE = {
+    default: "background, scenery, cinematic, realistic, photo, blur, bokeh, depth of field, complex lighting, dramatic lighting, watermark, logo, text, jpeg artifacts, messy lines, extra limbs, deformed",
+    character: "background, scenery, cinematic, realistic, photo, blur, shadow cast, depth of field, bokeh, watermark, logo, text, messy anatomy, extra limbs, deformed, low quality",
+    ui: "drop shadow, bevel, glossy, realistic, photo, background, watermark, logo, text, blur, noise, jpeg artifacts",
+    tile: "perspective, depth of field, vignette, shadow cast, non-tileable, seams, background scenery, watermark, logo, text, blur",
+    vfx: "background, scenery, realistic photo, watermark, logo, text, blur, noise, jpeg artifacts, complex scene"
+  };
+
+  // ---------- DOM ----------
+  const $ = (id)=>document.getElementById(id);
+  const statusEl = $("status");
+  const promptOut = $("promptOut");
+
+  // ---------- Init Selects ----------
+  function initSelects(){
+    // asset type
+    const at = $("assetType");
+    at.innerHTML = ASSET_TYPES.map(x=>`<option value="${x.key}">${x.name}</option>`).join("");
+
+    // style preset
+    const sp = $("stylePreset");
+    sp.innerHTML = STYLE_PRESETS.map(x=>`<option value="${x.key}">${x.name}</option>`).join("");
+
+    // default negative
+    $("negative").value = NEGATIVE_BY_TYPE.default;
+
+    // state options
+    syncStates();
+  }
+
+  function syncStates(){
+    const type = $("assetType").value;
+    const list = STATES[type] || ["asset"];
+    $("state").innerHTML = list.map(x=>`<option value="${x}">${x}</option>`).join("");
+
+    // auto toggle suggestions
+    autoTogglesForType(type);
+  }
+
+  function autoTogglesForType(type){
+    // keep user's preferences if already touched? We'll be conservative: only set defaults on type switch.
+    const isTile = ["tile_ground","tile_wall","seamless_texture"].includes(type);
+    const isUI = ["item_icon","ui_element"].includes(type);
+    const isBG = ["background_layer"].includes(type);
+    const isVFX = ["vfx_effect"].includes(type);
+
+    $("tileable").checked = isTile;
+    $("spriteSheet").checked = (type.includes("sprite") ? false : $("spriteSheet").checked); // don't force
+    $("uiNoShadow").checked = isUI;
+
+    // background/transparent: tiles & UI & sprites usually want no background
+    $("noBg").checked = !isBG; // BG layer may have background by definition
+    $("transparent").checked = !isBG; // BG layer often not transparent, but could be. default off.
+    $("orthographic").checked = isTile || isUI;
+
+    // recommended negative
+    useRecommendedNegative();
+  }
+
+  function getStylePresetText(){
+    const key = $("stylePreset").value;
+    const found = STYLE_PRESETS.find(x=>x.key===key);
+    return found ? found.text : "";
+  }
+
+  // ---------- Prompt Builder ----------
+  function buildConstraints(type){
+    const c = [];
+
+    if ($("cleanEdges").checked) c.push("clean edges");
+    if ($("consistent").checked) c.push("consistent proportions");
+
+    if ($("noBg").checked) c.push("no background");
+    if ($("transparent").checked) c.push("transparent background, PNG asset");
+
+    if ($("orthographic").checked) c.push("orthographic look, no perspective distortion");
+
+    if ($("tileable").checked){
+      c.push("tileable, seamless, no visible seams");
+      // For tiles/textures, background is usually none; but texture is itself the background. still ok.
+    }
+
+    if ($("spriteSheet").checked){
+      c.push("sprite sheet, grid layout, evenly spaced frames, consistent character scale");
+    }
+
+    if ($("uiNoShadow").checked){
+      c.push("no shadow, no gloss, flat UI look");
+    }
+
+    // Type-specific baseline constraints
+    if (type.includes("sprite")) c.push("full body, readable silhouette");
+    if (type==="item_icon") c.push("centered icon, simple shapes, high readability at small size");
+    if (type==="ui_element") c.push("clean UI layout, crisp corners, high contrast text area (but do not render text)");
+    if (type==="background_layer") c.push("layered background, parallax-ready, simple shapes");
+
+    return c;
+  }
+
+  function normalizeComma(s){
+    return s.split(",").map(x=>x.trim()).filter(Boolean).join(", ");
+  }
+
+  function generate(){
+    const typeKey = $("assetType").value;
+    const subject = $("subject").value.trim();
+    if (!subject){
+      setStatus("请先填写「主体/内容」", "warn");
+      promptOut.textContent = "";
+      return;
+    }
+
+    const type = ASSET_TYPES.find(x=>x.key===typeKey);
+    const view = $("view").value;
+    const state = $("state").value;
+    const stylePreset = getStylePresetText();
+    const quality = $("quality").value;
+    const palette = $("palette").value;
+    const renderStyle = $("renderStyle").value;
+    const details = $("details").value.trim();
+    const mood = $("mood").value.trim();
+    const sizeHint = $("sizeHint").value;
+
+    const parts = [];
+    // 1) asset definition
+    parts.push(type.base);
+
+    // 2) view & state
+    if (view) parts.push(view);
+    if (state) parts.push(state);
+
+    // 3) subject
+    parts.push(subject);
+
+    // 4) style blocks
+    if (quality) parts.push(quality);
+    if (stylePreset) parts.push(stylePreset);
+    if (palette) parts.push(palette);
+    if (renderStyle) parts.push(renderStyle);
+
+    // 5) extra details
+    if (details) parts.push(details);
+    if (mood) parts.push(mood);
+
+    // 6) constraints
+    const constraints = buildConstraints(typeKey);
+    if (constraints.length) parts.push(constraints.join(", "));
+
+    // 7) size hint (as text hint)
+    if (sizeHint) parts.push(`target size ${sizeHint}`);
+
+    // platform hint
+    const platform = $("platform").value;
+    if (platform === "leonardo"){
+      parts.push("avoid cinematic composition, keep as game asset");
+    } else if (platform === "sd"){
+      parts.push("game asset prompt, avoid scene illustration");
+    }
+
+    const out = normalizeComma(parts.join(", "));
+    promptOut.textContent = out;
+    setStatus("已生成 Prompt ✅", "ok");
+  }
+
+  // ---------- Negative ----------
+  function useRecommendedNegative(){
+    const typeKey = $("assetType").value;
+    const isTile = ["tile_ground","tile_wall","seamless_texture"].includes(typeKey);
+    const isUI = ["item_icon","ui_element"].includes(typeKey);
+    const isVFX = ["vfx_effect"].includes(typeKey);
+    const isChar = typeKey.includes("sprite");
+
+    let neg = NEGATIVE_BY_TYPE.default;
+    if (isUI) neg = NEGATIVE_BY_TYPE.ui;
+    else if (isTile) neg = NEGATIVE_BY_TYPE.tile;
+    else if (isVFX) neg = NEGATIVE_BY_TYPE.vfx;
+    else if (isChar) neg = NEGATIVE_BY_TYPE.character;
+
+    $("negative").value = neg;
+    setStatus("已按类型应用 Negative", "ok");
+  }
+
+  // ---------- Clipboard / Storage ----------
+  async function copyText(text){
+    try{
+      await navigator.clipboard.writeText(text);
+      setStatus("已复制到剪贴板", "ok");
+    }catch(e){
+      // fallback
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy");
+      ta.remove();
+      setStatus("已复制到剪贴板（fallback）", "ok");
+    }
+  }
+
+  function copyPrompt(){
+    const t = promptOut.textContent.trim();
+    if (!t){ setStatus("还没有 Prompt（先点生成）", "warn"); return; }
+    copyText(t);
+  }
+
+  function copyNegative(){
+    const t = $("negative").value.trim();
+    if (!t){ setStatus("Negative 为空", "warn"); return; }
+    copyText(t);
+  }
+
+  function nowStr(){
+    const d = new Date();
+    const p = (n)=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  function getHistory(){
+    try{ return JSON.parse(localStorage.getItem("gp2d_history")||"[]"); }
+    catch{ return []; }
+  }
+  function setHistory(arr){
+    localStorage.setItem("gp2d_history", JSON.stringify(arr));
+    renderHistory();
+  }
+
+  function snapshot(){
+    return {
+      ts: nowStr(),
+      assetType: $("assetType").value,
+      view: $("view").value,
+      stylePreset: $("stylePreset").value,
+      subject: $("subject").value,
+      state: $("state").value,
+      details: $("details").value,
+      mood: $("mood").value,
+      palette: $("palette").value,
+      renderStyle: $("renderStyle").value,
+      quality: $("quality").value,
+      platform: $("platform").value,
+      sizeHint: $("sizeHint").value,
+      toggles: {
+        noBg: $("noBg").checked,
+        transparent: $("transparent").checked,
+        cleanEdges: $("cleanEdges").checked,
+        consistent: $("consistent").checked,
+        orthographic: $("orthographic").checked,
+        tileable: $("tileable").checked,
+        spriteSheet: $("spriteSheet").checked,
+        uiNoShadow: $("uiNoShadow").checked
+      },
+      prompt: promptOut.textContent || "",
+      negative: $("negative").value || ""
+    };
+  }
+
+  function applySnapshot(s){
+    $("assetType").value = s.assetType || "character_sprite";
+    syncStates();
+    $("view").value = s.view || "side view";
+    $("stylePreset").value = s.stylePreset || "cartoon";
+    $("subject").value = s.subject || "";
+    $("state").value = s.state || $("state").value;
+    $("details").value = s.details || "";
+    $("mood").value = s.mood || "";
+    $("palette").value = s.palette || "";
+    $("renderStyle").value = s.renderStyle || "clean outline, simple shading, flat lighting";
+    $("quality").value = s.quality ?? "highly detailed, professional quality";
+    $("platform").value = s.platform || "leonardo";
+    $("sizeHint").value = s.sizeHint || "";
+
+    const t = s.toggles || {};
+    $("noBg").checked = !!t.noBg;
+    $("transparent").checked = !!t.transparent;
+    $("cleanEdges").checked = !!t.cleanEdges;
+    $("consistent").checked = !!t.consistent;
+    $("orthographic").checked = !!t.orthographic;
+    $("tileable").checked = !!t.tileable;
+    $("spriteSheet").checked = !!t.spriteSheet;
+    $("uiNoShadow").checked = !!t.uiNoShadow;
+
+    $("negative").value = s.negative || NEGATIVE_BY_TYPE.default;
+    promptOut.textContent = s.prompt || "";
+    setStatus("已载入历史项", "ok");
+  }
+
+  function saveToHistory(){
+    // ensure we have current prompt
+    if (!promptOut.textContent.trim()) generate();
+    if (!promptOut.textContent.trim()){
+      setStatus("无法保存：Prompt 为空", "warn");
+      return;
+    }
+    const h = getHistory();
+    const s = snapshot();
+    h.unshift(s);
+    setHistory(h.slice(0, 60)); // cap
+    setStatus("已保存到历史", "ok");
+  }
+
+  function clearHistory(){
+    setHistory([]);
+    setStatus("已清空历史", "ok");
+  }
+
+  function renderHistory(){
+    const h = getHistory();
+    const box = $("history");
+    if (!h.length){
+      box.innerHTML = `<div class="item"><div><div class="title">暂无记录</div><div class="meta">生成后点“保存到历史”</div></div></div>`;
+      return;
+    }
+    box.innerHTML = h.map((s, idx)=>{
+      const typeName = (ASSET_TYPES.find(x=>x.key===s.assetType)||{}).name || s.assetType;
+      const subject = (s.subject||"").toString().slice(0, 46);
+      return `
+        <div class="item">
+          <div style="min-width:0;">
+            <div class="title">${typeName} · ${escapeHtml(subject)}</div>
+            <div class="meta">${escapeHtml(s.ts||"")}</div>
+            <div class="small">${escapeHtml((s.prompt||"").slice(0, 90))}${(s.prompt||"").length>90?"…":""}</div>
+          </div>
+          <div class="miniBtns">
+            <button class="secondary" onclick="loadHistory(${idx})">载入</button>
+            <button class="secondary" onclick="copyFromHistory(${idx}, 'prompt')">复制P</button>
+            <button class="secondary" onclick="copyFromHistory(${idx}, 'negative')">复制N</button>
+            <button class="secondary" onclick="deleteHistory(${idx})">删除</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function escapeHtml(str){
+    return String(str).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  }
+
+  function loadHistory(idx){
+    const h = getHistory();
+    if (!h[idx]) return;
+    applySnapshot(h[idx]);
+  }
+  function copyFromHistory(idx, which){
+    const h = getHistory();
+    const s = h[idx]; if (!s) return;
+    copyText((which==="prompt"? s.prompt : s.negative) || "");
+  }
+  function deleteHistory(idx){
+    const h = getHistory();
+    h.splice(idx,1);
+    setHistory(h);
+    setStatus("已删除历史项", "ok");
+  }
+
+  function exportJSON(){
+    // export current snapshot
+    if (!promptOut.textContent.trim()) generate();
+    const data = snapshot();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `2d-prompt-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus("已导出 JSON", "ok");
+  }
+
+  function importJSON(){
+    const inp = document.createElement("input");
+    inp.type="file";
+    inp.accept="application/json";
+    inp.onchange = async ()=>{
+      const f = inp.files && inp.files[0];
+      if (!f) return;
+      const txt = await f.text();
+      try{
+        const data = JSON.parse(txt);
+        applySnapshot(data);
+      }catch{
+        setStatus("导入失败：JSON格式不正确", "warn");
+      }
+    };
+    inp.click();
+  }
+
+  function resetAll(){
+    $("assetType").value = "character_sprite";
+    $("view").value = "side view";
+    $("stylePreset").value = "cartoon";
+    syncStates();
+    $("subject").value = "";
+    $("details").value = "";
+    $("mood").value = "";
+    $("palette").value = "";
+    $("renderStyle").value = "clean outline, simple shading, flat lighting";
+    $("quality").value = "highly detailed, professional quality";
+    $("platform").value = "leonardo";
+    $("sizeHint").value = "";
+
+    $("noBg").checked = true;
+    $("transparent").checked = true;
+    $("cleanEdges").checked = true;
+    $("consistent").checked = true;
+    $("orthographic").checked = false;
+    $("tileable").checked = false;
+    $("spriteSheet").checked = false;
+    $("uiNoShadow").checked = false;
+
+    $("negative").value = NEGATIVE_BY_TYPE.default;
+    promptOut.textContent = "";
+    setStatus("已重置", "ok");
+  }
+
+  function setStatus(msg, level){
+    const cls = level==="ok" ? "ok" : (level==="warn" ? "warn" : "");
+    statusEl.innerHTML = `${escapeHtml(msg)} ${cls?`<span class="${cls}">●</span>`:""}`;
+  }
+
+  // ---------- Events ----------
+  $("assetType").addEventListener("change", ()=>{ syncStates(); });
+  // auto-generate when user presses Enter in subject
+  $("subject").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); generate(); } });
+
+  // ---------- Boot ----------
+  function init(){
+    initSelects();
+    renderHistory();
+    setStatus("就绪（建议：先选资产类型，再填主体）", "ok");
+  }
+  init();
+</script>
+</body>
+</html>
